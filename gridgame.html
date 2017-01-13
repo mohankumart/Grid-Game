@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<style>
+			.squareHolderEasy {
+				border: solid 2px grey;
+				width : 300px;
+				height : 300px;
+				padding : 5px;
+			}
+			.squareHolderMedium {
+				border: solid 2px grey;
+				width : 400px;
+				height : 400px;
+				padding : 5px;
+			}
+			.squareHolderHard {
+				border: solid 2px grey;
+				width : 500px;
+				height : 500px;
+				padding : 5px;
+			}
+			
+			.square {
+				border: solid 2px grey;
+				width : 90px;
+				height : 90px;
+				margin : 3px;
+				float : left;
+			}
+			
+			.number {
+				position :relative;
+				top:25px;
+				left:35px;
+				font-weight:bold;
+				font-size:20px;
+			}
+		</style>
+		<script>
+			var squareGame;
+			function SquareGame(config){
+				this.size = 3;
+				this.squares = [];
+				this.renderSquare(config);
+				this.initdragHandlers();
+				this.initdropHandlers();
+			}
+			
+			SquareGame.prototype.renderSquare = function(config){
+				//prepare square object
+				var gameid = config.id;
+				var gameholder = document.getElementById(gameid);
+				var mode = config.mode;
+				if(mode == "hard"){
+					this.size = 5;
+					gameholder.className = "squareHolderHard";
+				}else if(mode == "medium"){
+					this.size = 4;
+					gameholder.className = "squareHolderMedium";
+				}else{
+					this.size = 3;
+					gameholder.className = "squareHolderEasy";
+				}
+				
+				var squareLine;
+				var square;
+				
+				var sNumbers = this.prepareNumbers(this.size);
+				
+				for(var i=1;i<=this.size;i++){
+					squareLine = document.createElement("div");
+					squareLine.className = "squarelineholder";
+					var twoSquare = [];
+					for(var j=1;j<=this.size;j++){
+						var num = sNumbers.pop();
+						if(!num && num != 0){
+							num = "";
+						}
+						square = new Square(num,i-1,j-1);
+						 twoSquare.push(square);
+						squareLine.appendChild(square.squareElement);
+					}
+					this.squares.push(twoSquare);
+					gameholder.appendChild(squareLine);
+				}
+				
+			}
+			
+			SquareGame.prototype.returnEmptyPointers = function(){
+				var size = this.squares.length;
+				var pointer1,pointer2;
+				for(var i=0;i<size;i++){
+					var len = this.squares[i].length;
+					for(var j=0;j<len;j++){
+						if(this.squares[i][j].isEmpty){
+							pointer1 = i;
+							pointer2 = j;
+						}
+					}
+				}
+				var pointers = {"pointer1":pointer1,"pointer2":pointer2};
+				return pointers;
+			}
+			
+			
+			SquareGame.prototype.initdragHandlers = function(){
+				//init drag objects here
+				var pointers = this.returnEmptyPointers();
+				var pointer1 = pointers.pointer1,
+				pointer2 = pointers.pointer2;
+				
+				
+				//drag objects atmost four only
+				var index1,index2,dragObj;
+				
+				for(var i=0;i<4;i++){
+					if(i == 0){
+						index1 = pointer1-1;
+						index2 = pointer2;
+					}else if(i == 1){
+						index1 = pointer1;
+						index2 = pointer2+1;
+					}else if(i == 2){
+						index1 = pointer1;
+						index2 = pointer2-1;
+					}else if(i == 3){
+						index1 = pointer1+1;
+						index2 = pointer2;
+					}
+					if(index1 <= (this.size-1) && index2 <= (this.size-1)){
+						if(index1 >=0 && index2 >=0){
+							dragObj = this.squares[index1][index2];
+							dragObj.squareElement.setAttribute("draggable",true);
+							//attach event handlers
+							var dragElement = dragObj.squareElement;
+							dragElement.setAttribute("data-position",dragObj.pointer1+","+dragObj.pointer2);
+							dragElement.ondragstart = function(event){
+								//get the position of element
+								var currentposition = event.target.getAttribute("data-position");
+								event.dataTransfer.setData("Text",currentposition);
+							};
+						}
+					}
+					
+				}
+			}
+			
+			SquareGame.prototype.initdropHandlers = function(){
+				var pointers = this.returnEmptyPointers();
+				var pointer1 = pointers.pointer1,
+				pointer2 = pointers.pointer2;
+				var dropObject = this.squares[pointer1][pointer2];
+				var dropElement = dropObject.squareElement;
+				dropElement.setAttribute("data-position",dropObject.pointer1+","+dropObject.pointer2);
+				
+				dropElement.ondragover = function(event){
+					event.preventDefault();
+				};
+				
+				dropElement.ondragenter = function(event){
+					event.target.style.borderColor = "blue";
+				};
+				
+				dropElement.ondragleave = function(event){
+					event.target.style.borderColor = "grey";
+				};
+				
+				
+				dropElement.ondrop = function(event){
+					event.preventDefault();
+					event.stopPropagation();
+					event.target.style.borderColor = "grey";
+					var fromposition = event.dataTransfer.getData("Text");
+					var frompointer = fromposition.split(",");
+					//set the number to current sqaure
+					var fromObject = squareGame.squares[parseInt(frompointer[0],10)][parseInt(frompointer[1],10)];
+					var number;
+					if(fromObject.squareElement.innerText){
+						number = fromObject.squareElement.innerText;
+					}else{
+						number = fromObject.squareElement.textContent;
+					}
+					
+					
+					var toposition = event.target.getAttribute("data-position");
+					var topointer = toposition.split(",");
+					var toObject = squareGame.squares[parseInt(topointer[0],10)][parseInt(topointer[1],10)];
+					var squareNumber = document.createElement("span");
+					squareNumber.className = "number";
+					if(toObject.squareElement.innerText){
+						squareNumber.innerText = number;
+					}else{
+						
+						squareNumber.textContent = number;
+					}
+					toObject.squareElement.appendChild(squareNumber);
+					
+					//set the empty of current square to false
+					toObject.isEmpty = false;
+					
+					//empty the from square
+					if(fromObject.squareElement.innerText){
+						fromObject.squareElement.innerText = "";
+					}else{
+						fromObject.squareElement.textContent = "";
+					}
+					
+					//set the empty of from square to true
+					fromObject.isEmpty = true;
+					
+					//remove the listners to drag and drop objects
+					squareGame.resetDragdrop(parseInt(topointer[0],10),parseInt(topointer[1],10));
+					//reinitialize the pointers
+					squareGame.initdragHandlers();
+					squareGame.initdropHandlers();
+					
+					//check if game is completed or not
+					var gamedone = squareGame.checkGame();
+					if(gamedone){
+						alert(gamedone);
+					}
+				};
+				
+			}
+			
+			SquareGame.prototype.checkGame = function(){
+				var size = this.squares.length;
+				var Numbers = [];
+				for(var i=0;i<size;i++){
+					var len = this.squares[i].length;
+					for(var j=0;j<len;j++){
+						Numbers.push(this.squares[i][j]);
+					}
+				}
+				
+				var gamedone = true;
+				var length = Numbers.length;
+				for(var i=0;i<length-1;i++){
+					if(!Numbers[i].isEmpty){
+						if(i != length-2){
+							if(parseInt(Numbers[i].squareElement.innerText?Numbers[i].squareElement.innerText:Numbers[i].squareElement.textContent,10) > parseInt(Numbers[i+1].squareElement.innerText?Numbers[i+1].squareElement.innerText:Numbers[i+1].squareElement.textContent,10)){
+								gamedone = false;
+								return gamedone;
+							}
+						}
+					}else{
+						gamedone = false;
+					}
+				}
+				return gamedone;
+			}
+			
+			
+			SquareGame.prototype.resetDragdrop = function(pointer1,pointer2){
+			
+				//reset drag handlers
+				var index1,index2,dragObj;
+				var index1,index2,dragObj;
+				
+				for(var i=0;i<4;i++){
+					if(i == 0){
+						index1 = pointer1-1;
+						index2 = pointer2;
+					}else if(i == 1){
+						index1 = pointer1;
+						index2 = pointer2+1;
+					}else if(i == 2){
+						index1 = pointer1;
+						index2 = pointer2-1;
+					}else if(i == 3){
+						index1 = pointer1+1;
+						index2 = pointer2;
+					}
+					if(index1 <= (this.size-1) && index2 <= (this.size-1)){
+						if(index1 >=0 && index2 >=0){
+							dragObj = this.squares[index1][index2];
+							dragObj.squareElement.removeAttribute("draggable");
+							//attach event handlers
+							var dragElement = dragObj.squareElement;
+							dragElement.removeAttribute("data-position");
+							dragElement.ondragstart = null;
+						}
+					}
+				}
+				
+				//reset drop handlers
+				var pointers = this.returnEmptyPointers();
+				pointer1 = pointers.pointer1;
+				pointer2 = pointers.pointer2;
+				var dropObject = this.squares[pointer1][pointer2];
+				var dropElement = dropObject.squareElement;
+				dropElement.removeAttribute("data-position");
+				dropElement.ondragover = null;
+				dropElement.ondrop = null;
+				dropElement.ondragenter = null;
+				dropElement.ondragleave = null;
+			}
+			
+			SquareGame.prototype.prepareNumbers = function(size){
+				var length = (size * size)-1;
+				
+				var numbers = [];
+				
+				for(var i=0;i<length;i++){
+					numbers[i] = i;
+				}
+				
+				var sArray = Shuffle(numbers,length);
+				
+				return sArray;
+			}
+			
+			function Shuffle(orgArray,arraySize){
+			   if (arraySize == 0 || arraySize == 1){
+				  return;
+				}
+			   var i;
+			   var index, temp;
+			   for (i = arraySize - 1; i > 0; i--)
+			   {
+				  index = Math.floor(Math.random()*10) % (i+1);
+				  temp = orgArray[index];
+				  orgArray[index] = orgArray[i];
+				  orgArray[i] = temp;
+			   }
+			   
+			   return orgArray;
+			}
+			
+			
+			
+			function Square(number,pointer1,pointer2){
+				this.squareElement = this.prepareSquare(number);
+				this.isEmpty = this.empty(number);
+				this.pointer1 = pointer1;
+				this.pointer2 = pointer2;
+			}
+			
+			Square.prototype.prepareSquare = function(number){
+				var squareelement = document.createElement("div");
+				squareelement.className = "square";
+				var squareNumber = document.createElement("span");
+				squareNumber.className = "number";
+				if(squareNumber.innerText){
+					squareNumber.innerText = number;
+				}else{
+					squareNumber.textContent = number;
+				}
+				
+				squareelement.appendChild(squareNumber);
+				return squareelement;
+			}
+			
+			Square.prototype.empty = function(number){
+				if(number == ""){
+					return true;
+				}else{
+					return false;
+				}
+			}
+			
+			
+			
+			function init(mode){
+				var gameElement = document.getElementById("mysquaregame");
+				gameElement.innerHTML = "";
+				var gameid = gameElement.getAttribute("id");
+				if(!mode){
+					mode = "easy";
+				}
+				var config = {"id":gameid,"mode":mode};
+				squareGame = new SquareGame(config);
+			}
+			
+			function playAgain(event){
+				var target = event.target;
+				init(target.id);
+			}
+			
+			function refresh(event){
+				var gameElement = document.getElementById("mysquaregame");
+				var classname = gameElement.className;
+				if(classname == "squareHolderHard"){
+					init("hard");
+				}else if(classname == "squareHolderMedium"){
+					init("medium");
+				}else{
+					init("easy");
+				}
+			}
+			
+		</script>
+	</head>
+	<body onload="init()">
+		<div id="mysquaregame" class="squareHolderEasy">
+			
+		</div>
+		<input type="button" id="easy" value="easy" onclick="playAgain(event)"/>
+		<input type="button" id="medium" value="medium" onclick="playAgain(event)"/>
+		<input type="button" id="hard" value="hard" onclick="playAgain(event)"/>
+		<input type="button" id="refresh" value="refresh" onclick="refresh(event)"/>
+	</body>
+</html>
+
+
+
+
+
+
+
